@@ -3,7 +3,7 @@ from __future__ import annotations
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, count, sum as fsum, to_date
 
-from src.support.mock.pyspark_common import Paths
+from src.pipelines.config import Paths
 
 
 def _read(spark: SparkSession, path: str, fmt: str):
@@ -44,4 +44,19 @@ def run(spark: SparkSession, paths: Paths, fmt: str) -> None:
     g = paths.gold.rstrip("/")
     _write(daily, f"{g}/daily_txn_metrics", fmt)
     _write(by_customer, f"{g}/customer_value_metrics", fmt)
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--raw", default="/tmp/raw")
+    parser.add_argument("--bronze", default="/tmp/bronze")
+    parser.add_argument("--silver", default="/tmp/silver")
+    parser.add_argument("--gold", default="/tmp/gold")
+    parser.add_argument("--fmt", default="delta")
+    args = parser.parse_args()
+
+    spark = SparkSession.builder.getOrCreate()
+    paths = Paths(raw=args.raw, bronze=args.bronze, silver=args.silver, gold=args.gold)
+    run(spark, paths, args.fmt)
 

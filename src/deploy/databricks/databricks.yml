@@ -1,0 +1,63 @@
+bundle:
+  name: pyspark-sample
+
+artifacts:
+  default:
+    type: whl
+    build: python setup.py bdist_wheel
+
+resources:
+  jobs:
+    pyspark_pipeline_job:
+      name: pyspark_pipeline_job
+      tasks:
+        - task_key: bronze_ingest
+          job_cluster_key: default_cluster
+          spark_python_task:
+            python_file: src/pipelines/bronze/ingest_bronze.py
+            parameters:
+              - "--fmt"
+              - "delta"
+              - "--raw"
+              - "/Volumes/main/default/raw"
+              - "--bronze"
+              - "/Volumes/main/default/bronze"
+        - task_key: silver_transform
+          depends_on:
+            - task_key: bronze_ingest
+          job_cluster_key: default_cluster
+          spark_python_task:
+            python_file: src/pipelines/silver/transform_silver.py
+            parameters:
+              - "--fmt"
+              - "delta"
+              - "--bronze"
+              - "/Volumes/main/default/bronze"
+              - "--silver"
+              - "/Volumes/main/default/silver"
+        - task_key: gold_transform
+          depends_on:
+            - task_key: silver_transform
+          job_cluster_key: default_cluster
+          spark_python_task:
+            python_file: src/pipelines/gold/transform_gold.py
+            parameters:
+              - "--fmt"
+              - "delta"
+              - "--silver"
+              - "/Volumes/main/default/silver"
+              - "--gold"
+              - "/Volumes/main/default/gold"
+
+      job_clusters:
+        - job_cluster_key: default_cluster
+          new_cluster:
+            spark_version: 13.3.x-scala2.12
+            node_type_id: i3.xlarge
+            num_workers: 1
+
+targets:
+  dev:
+    mode: development
+    workspace:
+      host: https://adb-xxx.x.azuredatabricks.net
